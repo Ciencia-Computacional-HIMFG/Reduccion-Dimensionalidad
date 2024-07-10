@@ -1,1 +1,0 @@
-# Reduccion-Dimensionalidad

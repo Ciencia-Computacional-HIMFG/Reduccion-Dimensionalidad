@@ -1,0 +1,151 @@
+---
+title: '**Analisis de Componentes Principales (PCA)**'
+output:
+  html_document:
+    df_print: paged
+---
+
+**PCA con datos de Macrófagos en el Microambiente Tumoral (TME): análisis y visualización.**
+
+Este ejemplo explorará un conjunto de datos de expresión obtenidos por RNAseq bulk, a partir de macrófagos entrenados por el TME. 
+Lo primero que debemos hacer es instalar y activar las librerías necesarias para realizar nuestro análisis y su visualización. Para ello debemos ejecutar: 
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_knit$set(root.dir = "D:/marval_windows/JR_MARVAL/programacion/ciencia_computacional_himfg")
+```
+
+```{r}
+# Instlación y activación de librerías
+#install.packages("corrr")
+library(corrr)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("ggcorrplot")
+library(ggcorrplot)
+#install.packages("FactoMineR")
+library(FactoMineR)
+#install.packages("factoextra")
+library(factoextra)
+
+```
+
++ Nota: en R el signo "#" se usa para comentar una línea de código, así el programa no buscará interpretarla, entonces la ignorará. **Es importante establecer su directorio de trabajo.** 
+
+Procedemos a cargar nuestro conjunto de datos a trabajar:
+
+```{r}
+# Importacion de datos
+# Establcer directorio de trabajo
+setwd("D:/marval_windows/JR_MARVAL/programacion/ciencia_computacional_himfg")
+list.files()
+
+# Cargar datos
+data <- read.table(file = "expresion_normalizada_mediana_GMCSF_vs_MACcoCC.csv", sep = ",", 
+                   head=T, row.names = 1)
+head(data)
+# Obtener dimensiones
+dimensiones <- dim(data)
+dimensiones
+
+```
+
+Ahora debemos estructurar los datos de la forma adecuda para nuestro análisis. También es muy importante **trabajar con datos normalizados**:
+
+```{r}
+# Analisis
+# Estructura de datos y búsqueda de valores faltantes
+str(data)
+colSums(is.na(data))
+# Eliminar filas cuya suma sea 0 (uso de las medianas)
+data <- data[!(rowSums(data[, -1]) == 0), ]
+head(data)
+colnames(data)
+# Obtener dimensiones
+dimensiones <- dim(data)
+dimensiones
+# Normalizar datos
+data_nor <- scale(data)
+head(data_nor)
+
+```
+
+Si observamos la salida del objeto *dimensiones* veremos que disminuye, esto porque eliminamos aquellos genes (filas) en los cuales la suma de sus observaciones es igual a 0. No nos interesa conservar filas de genes que no tienen expresión. 
+
+Una vez que tenemos los datos preparados procedemos a su exploración. En este ejemplo lo primero que se hace es una matriz de covarianza para entender cómo varían los datos y cómo se relacionan entre sí las diferentes variables.
+
+```{r}
+# Matriz de correlacion
+corr_matrix <- cor(data_nor)
+ggcorrplot(corr_matrix)
+
+```
+
+En este paso se propiamente se hace el PCA. Cada componente explica un porcentaje de la varianza total en el conjunto de datos. El siguiente gráfico nos permite observar la aportación de cada componente a la variación de los datos.
+
+```{r}
+# PCA
+pca <- princomp(corr_matrix)
+res <- summary(pca)
+res
+# Scree plot: gráfico de sedimentacion
+sed <- fviz_eig(pca, addlabels = T)
+sed
+```
+Una vez que tenemos los componentes podemos observar como se relacionan con nuestras variables (columnas).
+
+```{r}
+# Matriz de carga
+pca$loadings[,1:6]
+```
+
+A través de un biplot podemos visualizar las similitudes y diferencias entre las muestras. Además, muestra el impacto de cada atributo en cada uno de los componentes principales.
+
+```{r}
+# Graph of the variables
+fviz_pca_var(pca, col.var = "black")
+```
+
+También podemos observar cuánto está representada cada variable en un componente determinado. El tamaño del valores proporcional a la representatividad de cada variable a los componentes:
+
+```{r}
+# Representacion de cada variable en los componentes: las barras mas altas indican que esas
+# variables contribuyen más en los componenetes indicados
+cos <- fviz_cos2(pca, choice = "var", axes = 1:2)
+cos
+```
+
+Los dos gráficos anteriores se pueden visualizar en un mismo gráfico, lo cual es más ilustrativo: 
+
+```{r}
+# Combinacion del peso de los componentes y la influencia de las varibles en ellos
+pcaf <- fviz_pca_var(pca, col.var = "cos2",
+                     gradient.cols = c("blue", "black", "red"),
+                     repel = T) + ggtitle("Macrófagos entrenados ")
+
+
+pcaf
+```
+
+
+Finalmente, podemos guardar nuestro gráfico en el directorio de trabajo. 
+
+```{r}
+#---- Guardar el grafico----
+path = "D:/marval_windows/JR_MARVAL/programacion/ciencia_computacional_himfg/"
+
+png(filename =paste (path, "pcaf_mediana_MACcoCC.png", sep = ""),
+    res = 1800, height = 7, width = 7, units = "in")
+pcaf
+dev.off()
+```
+
+---
+Referencia:
+[Principal Component Analysis in R Tutorial](https://www.datacamp.com/tutorial/pca-analysis-r)
+
+Es importante y una buena práctica guarda la información de nuestra sesión:
+
+```{r}
+sessionInfo()
+```
+
